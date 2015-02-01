@@ -35,9 +35,12 @@ const int MC4 = 5;         // Right motor control 4: Arduino pin 5 to H-bridge 4
 int desired_velocity = 0;  // for desired velocity
 int xVal = 512;
 int yVal = 512;
-char chArray[INPUT_SIZE];
-char* xToken;
-char* yToken;
+
+//TODO: These are only needed if we use the non-String-based Serial.read() methods in the 
+//        main program loop (see below)
+//char chArray[INPUT_SIZE];
+//char* xToken;
+//char* yToken;
 
 // Function prototypes
 void left_wheel_fwd(int vel);
@@ -52,7 +55,13 @@ void setup()
     //TODO: May need to change this to Serial1 if we use the Arduino Mega. The Uno has only
     //       one hardware UART while the Mega has four--but the Mega's Serial port is the only
     //       one of the four that can be accessed over the USB port.
-    Serial.begin(115200);
+    Serial.begin(9600);
+    
+    // This is the solution to the Serial.read() (and related methods) blocking issue. These 
+    //  methods are blocking, and have a default time-out of 1000ms. So they will block for 
+    //  1 second unless the _timeout value (in the Stream.h header) is set differently, using 
+    //  this public interface function. This seems to now have resolved the pause issue!
+    Serial.setTimeout(100);
 
     // Set up both sides of the H-bridge
     pinMode(EN_LEFT, OUTPUT);
@@ -72,31 +81,27 @@ void loop()
     // Block until there is serial data available
     while (Serial.available() == 0) 
         ;
-//        
-//TODO: This might need to be changed, as the Serial.readBytes() method seems to take a 
-//        second or so to execute. We may need to instead use a loop to read up to a null,
-//        loading each character into a char array (or String) as we go--then process that
-//        value once the read is finished. We may even need to try the SPI bus to see if
-//        we can't get a better response time. Also, the faster processor of the Arduino
-//        Due (84MHz) might show an improvement as well.
-     
-    // Load the command array, get the number of bytes read and then terminate the array
-    byte size = Serial.readBytes(chArray, INPUT_SIZE);
-    chArray[size] = '\0';
-    
-    xToken = strtok(chArray, ",");
-    xVal = atoi(xToken);
-    
-    // Use NULL for the first arg, so that we keep going in the array
-    yToken = strtok(NULL, "\0");
-    yVal = atoi(yToken);
+
+//    // Load the command array, get the number of bytes read and then terminate the array
+//    byte size = Serial.readBytes(chArray, INPUT_SIZE);
+//    chArray[size] = '\0';
+//    
+//    xToken = strtok(chArray, ",");
+//    xVal = atoi(xToken);
+//    
+//    // Use NULL for the first arg, so that we keep going in the array
+//    yToken = strtok(NULL, "\0");
+//    yVal = atoi(yToken);
   
-    // Alternate method, using String class objects -- no obvious difference in the speed
-    //  of execution, compared to the non-String method from above
-//    String xString = Serial.readStringUntil(',');
-//    xVal = xString.toInt();
-//    String yString = Serial.readStringUntil('\0');
-//    yVal = yString.toInt();  
+ //TODO: This code is somewhat simpler than that above, although this uses Strings. Some
+ //        forum posters advise that the use of Strings can be somewhat more problematic
+ //        due to dynamic memory management under the hood at runtime. Therefore we may need
+ //        to stress-test this version, as opposed to using the char[] as noted above.
+    String xString = Serial.readStringUntil(',');
+    xVal = xString.toInt();
+    String yString = Serial.readStringUntil('\0');
+    yVal = yString.toInt();  
+         
          
 #ifdef DEBUG
     Serial.print("x-val: ");
@@ -105,7 +110,10 @@ void loop()
     Serial.println(yVal);
 #endif
 
-    // Go forward if xVal is (537,1023]
+//TODO: Need to implement the ability to support differential steering through asymmetric 
+//        wheel velocities
+
+// Go forward if xVal is (537,1023]
     if (xVal > 562 && xVal <= 1023) {
         desired_velocity = map(xVal, 563, 1023, 0, 255);
         left_wheel_fwd(desired_velocity);

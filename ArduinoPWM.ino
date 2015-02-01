@@ -74,8 +74,10 @@ void loop()
     while (Serial.available() == 0) 
         ;
         
-//    // Load the command array, get the number of bytes read and then 
-//    //  terminate the array
+//TODO: This might need to be changed, as the Serial.readBytes() method seems to take a 
+//        second or so to execute
+    // Load the command array, get the number of bytes read and then 
+    //  terminate the array
     byte size = Serial.readBytes(chArray, INPUT_SIZE);
     chArray[size] = 0;
         

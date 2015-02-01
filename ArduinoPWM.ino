@@ -33,8 +33,11 @@ const int MC4 = 5;         // Right motor control 4: Arduino pin 5 to H-bridge 4
 
 //TODO: Will need to implement differential wheel velocities
 int desired_velocity = 0;  // for desired velocity
-int xVal;
-int yVal;
+int xVal = 512;
+int yVal = 512;
+char chArray[INPUT_SIZE];
+char* xToken;
+char* yToken;
 
 // Function prototypes
 void left_wheel_fwd(int vel);
@@ -49,7 +52,7 @@ void setup()
     //TODO: May need to change this to Serial1 if we use the Arduino Mega. The Uno has only
     //       one hardware UART while the Mega has four--but the Mega's Serial port is the only
     //       one of the four that can be accessed over the USB port.
-    Serial.begin(9600);
+    Serial.begin(115200);
 
     // Set up both sides of the H-bridge
     pinMode(EN_LEFT, OUTPUT);
@@ -65,30 +68,31 @@ void setup()
 }
 
 void loop()
-{
-    char chArray[INPUT_SIZE];
-    char* xToken;
-    char* yToken;
-    
-    // Block until there is serail data available
+{  
+    // Block until there is serial data available
     while (Serial.available() == 0) 
         ;
-        
+//        
 //TODO: This might need to be changed, as the Serial.readBytes() method seems to take a 
-//        second or so to execute
-    // Load the command array, get the number of bytes read and then 
-    //  terminate the array
+//        second or so to execute. We may need to instead use a loop to read up to a null,
+//        loading each character into a char array (or String) as we go--then process that
+//        value once the read is finished. We may even need to try the SPI bus to see if
+//        we can't get a better response time. Also, the faster processor of the Arduino
+//        Due (84MHz) might show an improvement as well.
+     
+    // Load the command array, get the number of bytes read and then terminate the array
     byte size = Serial.readBytes(chArray, INPUT_SIZE);
-    chArray[size] = 0;
-        
+    chArray[size] = '\0';
+    
     xToken = strtok(chArray, ",");
     xVal = atoi(xToken);
-        
+    
     // Use NULL for the first arg, so that we keep going in the array
     yToken = strtok(NULL, "\0");
     yVal = atoi(yToken);
-    
-    // Alternate method, using String class objects
+  
+    // Alternate method, using String class objects -- no obvious difference in the speed
+    //  of execution, compared to the non-String method from above
 //    String xString = Serial.readStringUntil(',');
 //    xVal = xString.toInt();
 //    String yString = Serial.readStringUntil('\0');
@@ -120,7 +124,7 @@ void loop()
     }
 
      // Run this loop every 200ms (5Hz) for testing purposes
-    delay(200);
+    //delay(50);
 }
 
 void left_wheel_fwd(int rate)

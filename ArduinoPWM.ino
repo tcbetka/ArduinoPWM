@@ -113,6 +113,11 @@ void loop()
 //TODO: Need to implement the ability to support differential steering through asymmetric 
 //        wheel velocities
 
+//TODO: Look at the TimerOne library for generating PWM signals with a finer degree of control 
+//        than that of the (fixed) 500Hz standard PWM capability of the Arduino Uno
+//    See: http://playground.arduino.cc/Code/Timer1
+//    See: Chapter 3 of Monk's "Programming Arduino Next Steps..." book
+
 // Go forward if xVal is (537,1023]
     if (xVal > 562 && xVal <= 1023) {
         desired_velocity = map(xVal, 563, 1023, 0, 255);

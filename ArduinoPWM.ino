@@ -118,6 +118,12 @@ void loop()
 //    See: http://playground.arduino.cc/Code/Timer1
 //    See: Chapter 3 of Monk's "Programming Arduino Next Steps..." book
 
+
+//TODO: An idea about differential turning might be allow some value of the y-axis without 
+//        turning. For example if the yVal is [362,462] or [563,663], then just treat this as
+//        pure motion along the X-axis. Once the y-values get outside those ranges, then maybe
+//        we can start to add in differential wheel motion in the mid-ranges. This will have
+//        to be studied a bit more before trying various approaches to the problem.
 // Go forward if xVal is (537,1023]
     if (xVal > 562 && xVal <= 1023) {
         desired_velocity = map(xVal, 563, 1023, 0, 255);

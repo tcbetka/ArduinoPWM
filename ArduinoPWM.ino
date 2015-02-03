@@ -113,24 +113,21 @@ void loop()
     Serial.println(xToken);
  #endif
     
-    // We need some logic here in case the strtok() returns NULL, which would result in some 
-    //  undefined behavior from atoi(). If xToek is NULL, then it won't get changed from the 
-    //  previous value.
+    // Prevent undefined behavior from atoi() if strtok() returns NULL 
     if (xToken != NULL) {
         xVal = atoi(xToken); 
     }
   
- //TODO:  
+ //TODO: Test this logic
     // If atoi() returns a zero (0), it could mean either that the user sent a 0, or that atoi()
-    //  function read an invalid value and returned a 0 to indicate this--and there's way to 
-    //  tell which has occurred. Therefore we're going to have to disallow 0 as a value sent 
-    //  from the CC, by limiting the range of usable values to (0,1023].
+    //  function read an invalid value and returned a 0 to indicate this. Since there's no way 
+    //  to tell which has occurred, we're going to have to disallow 0 as a value sent 
+    //  from the CC by limiting the range of usable values to (0,1023].
     if (xVal == 0) { 
         xVal = xValLast;
     } else {
         xValLast = xVal;
     }
-    
     
     // Use NULL for the first arg, so that we keep going in the array instead of starting anew
     yToken = strtok(NULL, "\0");
@@ -143,6 +140,7 @@ void loop()
     if (yToken != NULL) {
         yVal = atoi(yToken);
     }
+    
     if (yVal == 0) {
         yVal = yValLast;
     } else {
@@ -166,21 +164,20 @@ void loop()
     Serial.println(yVal);
 #endif
 
-
-// Go forward if xVal is (537,1023]
-    if (xVal > 537 && xVal <= 1023) {
+    // Go forward if xVal is (537,1023]
+    if (xVal > 537 && xVal <= 1023) {         
         desired_velocity = map(xVal, 538, 1023, 0, 255);
         left_wheel_fwd(desired_velocity);
         right_wheel_rev(desired_velocity);
-    }
+    } 
     // Reverse if xVal is [0, 487)
-    else if (xVal >= 0 && xVal < 487) {
+    else if (xVal >= 0 && xVal < 487) {     
         desired_velocity = map(xVal, 486, 0, 0, 255);
         left_wheel_rev(desired_velocity);
         right_wheel_fwd(desired_velocity);
-    }
+    } 
     // Otherwise, apply the brakes
-    else {
+    else {                                  
         left_wheel_brake();
         right_wheel_brake();
     }

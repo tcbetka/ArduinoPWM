@@ -13,6 +13,21 @@
 *  has only 6, while the Mega has at least twice that number.
 *
 *******************************************************************************/
+
+//TODO: Need to implement the ability to support differential steering through asymmetric 
+//        wheel velocities
+
+//TODO: Look at the TimerOne library for generating PWM signals with a finer degree of control 
+//        than that of the (fixed) 500Hz standard PWM capability of the Arduino Uno
+//      See: http://playground.arduino.cc/Code/Timer1
+//      See: Chapter 3 of Monk's "Programming Arduino Next Steps..." book
+
+//TODO: An idea about differential turning might be allow some value of the y-axis without 
+//        turning. For example if the yVal is [362,462] or [563,663], then just treat this as
+//        pure motion along the X-axis. Once the y-values get outside those ranges, then maybe
+//        we can start to add in differential wheel motion in the mid-ranges. This will have
+//        to be studied a bit more before trying various approaches to the problem.
+
 #define DEBUG
 
 const int INPUT_SIZE = 20;
@@ -27,20 +42,20 @@ const int MC2 = 2;         // Left motor control 2: Arduino pin 2 to H-bridge 2A
 const int MC3 = 4;         // Right motor control 3: Arduino pin 4 to H-bridge 3A
 const int MC4 = 5;         // Right motor control 4: Arduino pin 5 to H-bridge 4A
 
-//TODO: Replace these when remote control is implemented
-//const int POT = A0;        // Analog input for potentiometer
-//long input_val = 512;
-
 //TODO: Will need to implement differential wheel velocities
 int desired_velocity = 0;  // for desired velocity
+
+// Make sure the code starts running with the motors in the dead band
 int xVal = 512;
+int xValLast = 512;
 int yVal = 512;
+int yValLast = 512;
 
 //TODO: These are only needed if we use the non-String-based Serial.read() methods in the 
 //        main program loop (see below)
-//char chArray[INPUT_SIZE];
-//char* xToken;
-//char* yToken;
+char chArray[INPUT_SIZE];
+char* xToken;
+char* yToken;
 
 // Function prototypes
 void left_wheel_fwd(int vel);
@@ -49,6 +64,7 @@ void left_wheel_brake();
 void right_wheel_fwd(int vel);
 void right_wheel_rev(int vel);
 void right_wheel_brake();
+
 
 void setup()
 {
@@ -76,31 +92,71 @@ void setup()
     right_wheel_brake();
 }
 
+
 void loop()
 {  
     // Block until there is serial data available
     while (Serial.available() == 0) 
         ;
 
-//    // Load the command array, get the number of bytes read and then terminate the array
-//    byte size = Serial.readBytes(chArray, INPUT_SIZE);
-//    chArray[size] = '\0';
-//    
-//    xToken = strtok(chArray, ",");
-//    xVal = atoi(xToken);
-//    
-//    // Use NULL for the first arg, so that we keep going in the array
-//    yToken = strtok(NULL, "\0");
-//    yVal = atoi(yToken);
+
+    // Load the command array up to the first NULL and get the number of bytes read. Then 
+    //  we terminate the array
+    byte size = Serial.readBytesUntil('\0', chArray, INPUT_SIZE);
+    chArray[size] = '\0';
+    
+    // The returned string should be something like 300,400
+    xToken = strtok(chArray, ",");
+    
+ #ifdef DEBUG
+    Serial.print("xToken: ");
+    Serial.println(xToken);
+ #endif
+    
+    // We need some logic here in case the strtok() returns NULL, which would result in some 
+    //  undefined behavior from atoi(). If xToek is NULL, then it won't get changed from the 
+    //  previous value.
+    if (xToken != NULL) {
+        xVal = atoi(xToken); 
+    }
   
- //TODO: This code is somewhat simpler than that above, although this uses Strings. Some
- //        forum posters advise that the use of Strings can be somewhat more problematic
- //        due to dynamic memory management under the hood at runtime. Therefore we may need
- //        to stress-test this version, as opposed to using the char[] as noted above.
-    String xString = Serial.readStringUntil(',');
-    xVal = xString.toInt();
-    String yString = Serial.readStringUntil('\0');
-    yVal = yString.toInt();  
+ //TODO:  
+    // If atoi() returns a zero (0), it could mean either that the user sent a 0, or that atoi()
+    //  function read an invalid value and returned a 0 to indicate this--and there's way to 
+    //  tell which has occurred. Therefore we're going to have to disallow 0 as a value sent 
+    //  from the CC, by limiting the range of usable values to (0,1023].
+    if (xVal == 0) { 
+        xVal = xValLast;
+    } else {
+        xValLast = xVal;
+    }
+    
+    
+    // Use NULL for the first arg, so that we keep going in the array instead of starting anew
+    yToken = strtok(NULL, "\0");
+    
+ #ifdef DEBUG
+    Serial.print("yToken: ");
+    Serial.println(yToken);
+ #endif
+ 
+    if (yToken != NULL) {
+        yVal = atoi(yToken);
+    }
+    if (yVal == 0) {
+        yVal = yValLast;
+    } else {
+        yValLast = yVal;
+    }
+    
+    // NOTE: Although this code is simpler than that above as it uses String objects, 
+    //  some forum posters advise that the use of Strings can be problematic due to 
+    //  dynamic memory management under the hood. Therefore we may need to stress-test
+    //  this version, as opposed to using the char[] as noted above.
+//    String xString = Serial.readStringUntil(',');
+//    xVal = xString.toInt();
+//    String yString = Serial.readStringUntil('\0');
+//    yVal = yString.toInt();  
          
          
 #ifdef DEBUG
@@ -110,29 +166,16 @@ void loop()
     Serial.println(yVal);
 #endif
 
-//TODO: Need to implement the ability to support differential steering through asymmetric 
-//        wheel velocities
 
-//TODO: Look at the TimerOne library for generating PWM signals with a finer degree of control 
-//        than that of the (fixed) 500Hz standard PWM capability of the Arduino Uno
-//    See: http://playground.arduino.cc/Code/Timer1
-//    See: Chapter 3 of Monk's "Programming Arduino Next Steps..." book
-
-
-//TODO: An idea about differential turning might be allow some value of the y-axis without 
-//        turning. For example if the yVal is [362,462] or [563,663], then just treat this as
-//        pure motion along the X-axis. Once the y-values get outside those ranges, then maybe
-//        we can start to add in differential wheel motion in the mid-ranges. This will have
-//        to be studied a bit more before trying various approaches to the problem.
 // Go forward if xVal is (537,1023]
-    if (xVal > 562 && xVal <= 1023) {
-        desired_velocity = map(xVal, 563, 1023, 0, 255);
+    if (xVal > 537 && xVal <= 1023) {
+        desired_velocity = map(xVal, 538, 1023, 0, 255);
         left_wheel_fwd(desired_velocity);
         right_wheel_rev(desired_velocity);
     }
     // Reverse if xVal is [0, 487)
-    else if (xVal >= 0 && xVal < 462) {
-        desired_velocity = map(xVal, 461, 0, 0, 255);
+    else if (xVal >= 0 && xVal < 487) {
+        desired_velocity = map(xVal, 486, 0, 0, 255);
         left_wheel_rev(desired_velocity);
         right_wheel_fwd(desired_velocity);
     }

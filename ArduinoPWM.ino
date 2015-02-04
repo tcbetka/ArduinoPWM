@@ -1,17 +1,9 @@
 /*******************************************************************************
-* PWM_Full_Hbridge.ino
-*
-*  Arduino sketch to utilize the SN754410 H-Bridge in order to control two
-*  motors on a robotics test platform. The pin assignments should work for
-*  both the Mega2560 and the Uno. Both units run at the same CPU speed (16 MHz)
-*  but the Mega has 256KB of flash while the Uno has only 32KB. Also, the Uno
-*  has only one hardware UART port, which might be problematic if you need to
-*  receive UART motor control data from the BBB while also using the UART to
-*  print DEBUG messages at run-time. Therefore it might be best to develop/test
-*  the code on a Mega, and then (code size permitting) deploy to the Uno. The
-*  number of PWM pins will also help make this determination as well, as the Uno
-*  has only 6, while the Mega has at least twice that number.
-*
+* Code to experiment with the Adafruit Motorshield controller, based on the
+*  sample code provided by Adafruit. This device uses the i2c bus to control
+*  4 DC motors or 2 servos, however these boards can be stacked to add DC
+*  motors as need. This code turns out to be much simpler than that previously
+*  developed for the SN754410 H-Bridge motor controller.
 *******************************************************************************/
 //TODO: Need to implement the ability to support differential steering through asymmetric 
 //        wheel velocities
@@ -27,42 +19,33 @@
 //        we can start to add in differential wheel motion in the mid-ranges. This will have
 //        to be studied a bit more before trying various approaches to the problem.
 
+// Includes needed for Adafruit's motorshield
+#include <Wire.h>
+#include <Adafruit_MotorShield.h>
+#include "utility/Adafruit_PWMServoDriver.h"
+
 #define DEBUG
 
 const int INPUT_SIZE = 20;
 
-const int EN_LEFT = 9;     // Left side half-bridge enable
-const int EN_RIGHT = 11;   // Right side half-bridge enable
-const int MC1 = 3;         // Left motor control 1: Arduino pin 3 to H-bridge 1A
-const int MC2 = 2;         // Left motor control 2: Arduino pin 2 to H-bridge 2A
-
-//TODO: These two wires may need to be reversed, based upon the orientation of the motors
-//       when mounted in the chassis of the robot/ROV. This will need testing. 
-const int MC3 = 4;         // Right motor control 3: Arduino pin 4 to H-bridge 3A
-const int MC4 = 5;         // Right motor control 4: Arduino pin 5 to H-bridge 4A
-
-//TODO: Will need to implement differential wheel velocities
-int desired_velocity = 0;  // for desired velocity
+// We need a motorshield object and a couple of motor pointers. We will use channels 1 and 2 on
+//  the motor shield, and leave channels 3 and 4 open for future feature addition
+Adafruit_MotorShield myShield = Adafruit_MotorShield();
+Adafruit_DCMotor* lMotor = myShield.getMotor(1);
+Adafruit_DCMotor* rMotor = myShield.getMotor(2);
 
 // Make sure the code starts running with the motors in the dead band
 int xVal = 512;
 int xValLast = 512;
 int yVal = 512;
 int yValLast = 512;
+int desired_velocity = 0;
 
 //TODO: These are only needed if we use the non-String-based Serial.read() methods in the 
 //        main program loop (see below)
 char chArray[INPUT_SIZE];
 char* xToken;
 char* yToken;
-
-// Function prototypes
-void left_wheel_fwd(int vel);
-void left_wheel_rev(int vel);
-void left_wheel_brake();
-void right_wheel_fwd(int vel);
-void right_wheel_rev(int vel);
-void right_wheel_brake();
 
 
 void setup()
@@ -78,17 +61,16 @@ void setup()
     //  this public interface function. This seems to now have resolved the pause issue!
     Serial.setTimeout(100);
 
-    // Set up both sides of the H-bridge
-    pinMode(EN_LEFT, OUTPUT);
-    pinMode(MC1, OUTPUT);
-    pinMode(MC2, OUTPUT);
-    pinMode(EN_RIGHT, OUTPUT);
-    pinMode(MC3, OUTPUT);
-    pinMode(MC4, OUTPUT);
-
-    // Make sure both motors are initialized with brakes on
-    left_wheel_brake();
-    right_wheel_brake();
+    // Create the MotorShield with a default 1.6KHz frequency
+    myShield.begin();
+    
+    // TODO: We may not need these two, if we're calling run(BRAKE) right afterwards
+    lMotor->setSpeed(0);
+    rMotor->setSpeed(0);
+    
+    // Apply the brake to each motor
+    rMotor->run(BRAKE);
+    lMotor->run(BRAKE);
 }
 
 
@@ -166,97 +148,33 @@ void loop()
     // Go forward if xVal is (537,1023]
     if (xVal > 537 && xVal <= 1023) {         
         desired_velocity = map(xVal, 538, 1023, 0, 255);
-        left_wheel_fwd(desired_velocity);
-        right_wheel_rev(desired_velocity);
+        lMotor->setSpeed(desired_velocity);
+        rMotor->setSpeed(desired_velocity);
+        lMotor->run(FORWARD);
+        rMotor->run(FORWARD);
+        
+        // TODO: Give the motor a bit of time to respond to command before allowing changes. Need 
+        //        to experiment with this a bit, in terms of proper values and if it's even needed.
+        delay(10);
     } 
     // Reverse if xVal is [0, 487)
     else if (xVal >= 0 && xVal < 487) {     
         desired_velocity = map(xVal, 486, 0, 0, 255);
-        left_wheel_rev(desired_velocity);
-        right_wheel_fwd(desired_velocity);
+        lMotor->setSpeed(desired_velocity);
+        rMotor->setSpeed(desired_velocity);
+        lMotor->run(BACKWARD);
+        rMotor->run(BACKWARD);
+        delay(10);
     } 
     // Otherwise, apply the brakes
-    else {                                  
-        left_wheel_brake();
-        right_wheel_brake();
+    else {   
+        desired_velocity = 0;
+        lMotor->setSpeed(desired_velocity);
+        rMotor->setSpeed(desired_velocity);
+        lMotor->run(BRAKE);
+        rMotor->run(BRAKE);  
+        delay(10);      
     }
-
-     // Run this loop every 200ms (5Hz) for testing purposes
-    //delay(50);
 }
 
-void left_wheel_fwd(int rate)
-{
-    // Turn off the H-bridge by grounding the enable (EN) pin. This essentially removes
-    //  any voltage from the base of the transistor.
-    digitalWrite(EN_LEFT, LOW);
 
-    // Now we turn on one controller and turn the other off
-    digitalWrite(MC1, HIGH);
-    digitalWrite(MC2, LOW);
-
-    // Set the PWM value for the motor control duty cycle
-    analogWrite(EN_LEFT, rate);
-}
-
-void left_wheel_rev(int rate)
-{
-    // Turn off the H-bridge by grounding the enable (EN) pin.
-    digitalWrite(EN_LEFT, LOW);
-
-    // Now we turn on one controller and turn the other off
-    digitalWrite(MC1, LOW);
-    digitalWrite(MC2, HIGH);
-
-    // Set the PWM value for the motor control duty cycle
-    analogWrite(EN_LEFT, rate);
-}
-
-void right_wheel_fwd(int rate)
-{
-    // Turn off the H-bridge by grounding the enable (EN) pin. This essentially removes
-    //  any voltage from the base of the transistor.
-    digitalWrite(EN_RIGHT, LOW);
-
-    // Now we turn on one controller and turn the other off
-    digitalWrite(MC4, HIGH);
-    digitalWrite(MC3, LOW);
-
-    // Set the PWM value for the motor control duty cycle
-    analogWrite(EN_RIGHT, rate);
-}
-
-void right_wheel_rev(int rate)
-{
-    // Turn off the H-bridge by grounding the enable (EN) pin.
-    digitalWrite(EN_RIGHT, LOW);
-
-    // Now we turn on one controller and turn the other off
-    digitalWrite(MC4, LOW);
-    digitalWrite(MC3, HIGH);
-
-    // Set the PWM value for the motor control duty cycle
-    analogWrite(EN_RIGHT, rate);
-}
-
-void left_wheel_brake()
-{
-    // Turn off H-bridge and both controllers
-    digitalWrite(EN_LEFT, LOW);
-    digitalWrite(MC1, LOW);
-    digitalWrite(MC2, LOW);
-
-    // Finally, saturate both transistors to apply the brakes
-    digitalWrite(EN_LEFT, HIGH);
-}
-
-void right_wheel_brake()
-{
-    // Turn off H-bridge and both controllers
-    digitalWrite(EN_RIGHT, LOW);
-    digitalWrite(MC4, LOW);
-    digitalWrite(MC3, LOW);
-
-    // Saturate both transistors to apply the brakes
-    digitalWrite(EN_RIGHT, HIGH);
-}

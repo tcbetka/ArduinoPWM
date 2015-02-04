@@ -13,7 +13,6 @@
 *  has only 6, while the Mega has at least twice that number.
 *
 *******************************************************************************/
-
 //TODO: Need to implement the ability to support differential steering through asymmetric 
 //        wheel velocities
 

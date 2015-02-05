@@ -41,6 +41,7 @@ const int INPUT_SIZE = 20;
 // For testing the joystick controller while attached directly to the Arduino
 const int yRangeIn = A0;
 const int xRangeIn = A1;
+const float SCALE_FACTOR = 0.7f;
 
 
 // We need a motorshield object and a couple of motor pointers. We will use channels 1 and 2 on
@@ -210,10 +211,10 @@ void loop()
     // Otherwise we want to turn left or right, so this takes precedence over forward/reverse
     else
     {      
-        // RIGHT
+        // RIGHT (Note: reduce the desired_turn_rate by a factor of a multiplier.)
         if (yVal > 537 && yVal <= 1023) {         
             desired_turn_rate = map(yVal, 538, 1023, 0, 255);
-            lMotor->setSpeed(desired_turn_rate);          
+            lMotor->setSpeed((int)(SCALE_FACTOR * desired_turn_rate));          
             lMotor->run(FORWARD);
             rWheelStop(); 
             //rMotor->setSpeed(desired_turn_rate);
@@ -227,10 +228,10 @@ void loop()
             //        to experiment with this a bit, in terms of proper values and if it's even needed.
             delay(10);
         } 
-        // LEFT
+        // LEFT (Note: reduce the desired_turn_rate by a factor of a multiplier.)
         else if (yVal >= 0 && yVal < 487) {     
             desired_turn_rate = map(yVal, 486, 0, 0, 255);
-            rMotor->setSpeed(desired_turn_rate);            
+            rMotor->setSpeed((int)(SCALE_FACTOR * desired_turn_rate));            
             rMotor->run(FORWARD);
             lWheelStop();
             //lMotor->setSpeed(desired_turn_rate);
@@ -260,13 +261,13 @@ void loop()
 void lWheelStop(void)
 {
     lMotor->setSpeed(0);
-    lMotor->run(BRAKE);
+    //lMotor->run(BRAKE);
 }
 
 void rWheelStop(void)
 {
     rMotor->setSpeed(0);
-    rMotor->run(BRAKE);  
+    //,rMotor->run(BRAKE);  
 }
 
 

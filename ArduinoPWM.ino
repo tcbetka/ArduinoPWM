@@ -32,11 +32,16 @@
 
 #define DEBUG
 
+// Function prototypes
+void lWheelStop(void);
+void rWheelStop(void);
+
 const int INPUT_SIZE = 20;
 
 // For testing the joystick controller while attached directly to the Arduino
 const int yRangeIn = A0;
 const int xRangeIn = A1;
+
 
 // We need a motorshield object and a couple of motor pointers. We will use channels 1 and 2 on
 //  the motor shield, and leave channels 3 and 4 open for future feature addition
@@ -49,40 +54,15 @@ int xVal = 512;
 int xValLast = 512;
 int yVal = 512;
 int yValLast = 512;
-int desired_velocity = 0;// //TODO: Test this logic
-//    // If atoi() returns a zero (0), it could mean either that the user sent a 0, or that atoi()
-//    //  function read an invalid value and returned a 0 to indicate this. Since there's no way 
-//    //  to tell which has occurred, we're going to have to disallow 0 as a value sent 
-//    //  from the CC by limiting the range of usable values to (0,1023].
-//    if (xVal == 0) { 
-//        xVal = xValLast;
-//    } else {
-//        xValLast = xVal;
-//    }
-//    
-//    // Use NULL for the first arg, so that we keep going in the array instead of starting anew
-//    yToken = strtok(NULL, "\0");
-//    
-// #ifdef DEBUG
-//    Serial.print("yToken: ");
-//    Serial.println(yToken);
-// #endif
-// 
-//    if (yToken != NULL) {
-//        yVal = atoi(yToken);
-//    }
-//    
-//    if (yVal == 0) {
-//        yVal = yValLast;
-//    } else {
-//        yValLast = yVal;
-//    }
+int desired_velocity = 0;
+int desired_turn_rate = 0;
+
 
 //TODO: These are only needed if we use the non-String-based Serial.read() methods in the 
 //        main program loop (see below)
-char chArray[INPUT_SIZE];
-char* xToken;
-char* yToken;
+//char chArray[INPUT_SIZE];
+//char* xToken;
+//char* yToken;
 
 
 void setup()
@@ -93,9 +73,9 @@ void setup()
     Serial.begin(9600);
     
     // This is the solution to the Serial.read() (and related methods) blocking issue. These 
-    //  methods are blocking, and have a default time-out of 1000ms. So they will block for 
-    //  1 second unless the _timeout value (in the Stream.h header) is set differently, using 
-    //  this public interface function. This seems to now have resolved the pause issue!
+    //  methods have a default time-out of 1000ms. So they will block for one second unless 
+    //  the _timeout value (in the Stream.h header) is set differently, using this public
+    //  interface function.
     Serial.setTimeout(100);
     
     // Set-up the analog input pins
@@ -105,25 +85,23 @@ void setup()
     // Create the MotorShield with a default 1.6KHz frequency
     myShield.begin();
     
-    // TODO: We may not need these two, if we're calling run(BRAKE) right afterwards
-    lMotor->setSpeed(0);
-    rMotor->setSpeed(0);
-    
-    // Apply the brake to each motor
-    rMotor->run(BRAKE);
-    lMotor->run(BRAKE);
+    // Stop both wheels
+    lWheelStop();
+    rWheelStop();
 }
 
 
 void loop()
 {  
-  xVal = analogRead(xRangeIn);
-  yVal = analogRead(yRangeIn);
+    //TODO: Remove when BBB/Arduino connection is implemented
+    xVal = analogRead(xRangeIn);
+    yVal = analogRead(yRangeIn);
   
+//    //TODO: Reimplement and test this logic once the BBB/Arduino connection is in place
+//
 //    // Block until there is serial data available
 //    while (Serial.available() == 0) 
 //        ;
-//
 //
 //    // Load the command array up to the first NULL and get the number of bytes read. Then 
 //    //  we terminate the array
@@ -189,39 +167,106 @@ void loop()
     Serial.println(yVal);
 #endif
 
-    // Go forward if xVal is (537,1023]
-    if (xVal > 537 && xVal <= 1023) {         
-        desired_velocity = map(xVal, 538, 1023, 0, 255);
-        lMotor->setSpeed(desired_velocity);
-        rMotor->setSpeed(desired_velocity);
-        lMotor->run(FORWARD);
-        rMotor->run(FORWARD);
-        
-        // TODO: Give the motor a bit of time to respond to command before allowing changes. Need 
-        //        to experiment with this a bit, in terms of proper values and if it's even needed.
-        delay(10);
-    } 
-    // Reverse if xVal is [0, 487)
-    else if (xVal >= 0 && xVal < 487) {     
-        desired_velocity = map(xVal, 486, 0, 0, 255);
-        lMotor->setSpeed(desired_velocity);
-        rMotor->setSpeed(desired_velocity);
-        lMotor->run(BACKWARD);
-        rMotor->run(BACKWARD);
-        delay(10);
-    } 
-    // Otherwise, apply the brakes
-    else {   
-        desired_velocity = 0;
-        lMotor->setSpeed(desired_velocity);
-        rMotor->setSpeed(desired_velocity);
-        lMotor->run(BRAKE);
-        rMotor->run(BRAKE);  
-        delay(10);      
+    // If the y-value is in the deadband, only go forward or backwards
+    if (yVal > 487 && yVal < 538)
+    {
+        // FWD if xVal is (537,1023]
+        if (xVal > 537 && xVal <= 1023) {         
+            desired_velocity = map(xVal, 538, 1023, 0, 255);
+            lMotor->setSpeed(desired_velocity);
+            rMotor->setSpeed(desired_velocity);
+            lMotor->run(FORWARD);
+            rMotor->run(FORWARD);
+            
+            #ifdef DEBUG
+                Serial.println("Direction: FWD");
+            #endif
+            
+            // TODO: Give the motor a bit of time to respond to command before allowing changes. Need 
+            //        to experiment with this a bit, in terms of proper values and if it's even needed.
+            delay(10);
+        } 
+        // REV if xVal is (0, 487)
+        else if (xVal >= 0 && xVal < 487) {     
+            desired_velocity = map(xVal, 486, 0, 0, 255);
+            lMotor->setSpeed(desired_velocity);
+            rMotor->setSpeed(desired_velocity);
+            lMotor->run(BACKWARD);
+            rMotor->run(BACKWARD);
+            
+            #ifdef DEBUG
+                Serial.println("Direction: REV");
+            #endif
+            
+            delay(10);
+        } 
+        // Otherwise, apply the brakes
+        else {   
+            lWheelStop();
+            rWheelStop();
+            delay(10);      
+        }
+    }
+    // Otherwise we want to turn left or right, so this takes precedence over forward/reverse
+    else
+    {      
+        // RIGHT
+        if (yVal > 537 && yVal <= 1023) {         
+            desired_turn_rate = map(yVal, 538, 1023, 0, 255);
+            lMotor->setSpeed(desired_turn_rate);          
+            lMotor->run(FORWARD);
+            rWheelStop(); 
+            //rMotor->setSpeed(desired_turn_rate);
+            //rMotor->run(BACKWARD);
+            
+            #ifdef DEBUG
+                Serial.println("Direction: RGT");
+            #endif
+            
+            // TODO: Give the motor a bit of time to respond to command before allowing changes. Need 
+            //        to experiment with this a bit, in terms of proper values and if it's even needed.
+            delay(10);
+        } 
+        // LEFT
+        else if (yVal >= 0 && yVal < 487) {     
+            desired_turn_rate = map(yVal, 486, 0, 0, 255);
+            rMotor->setSpeed(desired_turn_rate);            
+            rMotor->run(FORWARD);
+            lWheelStop();
+            //lMotor->setSpeed(desired_turn_rate);
+            //lMotor->run(BACKWARD);
+            
+            #ifdef DEBUG
+                Serial.println("Direction: LFT");
+            #endif
+            
+            delay(10);
+        } 
+        // Otherwise, apply the brakes
+        else {   
+            lWheelStop();
+            rWheelStop();
+            delay(10);      
+        }  
     }
     
     // Delay here for when using the joystick
     delay(250);
+}
+
+//TODO: Need to investigate whether or not the BRAKE needs to be applied, or if the setSpeed(0) call 
+//        is adequate by itself? Also, should we have a lWheelStop() and a lWheelSlow() function, 
+//        maybe to support a more gradual turn instead of stop-turn-start type of behavior?
+void lWheelStop(void)
+{
+    lMotor->setSpeed(0);
+    lMotor->run(BRAKE);
+}
+
+void rWheelStop(void)
+{
+    rMotor->setSpeed(0);
+    rMotor->run(BRAKE);  
 }
 
 

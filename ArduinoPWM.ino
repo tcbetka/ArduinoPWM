@@ -5,19 +5,25 @@
 *  motors as need. This code turns out to be much simpler than that previously
 *  developed for the SN754410 H-Bridge motor controller.
 *******************************************************************************/
-//TODO: Need to implement the ability to support differential steering through asymmetric 
-//        wheel velocities
+//
+//TODO List:
+//
+//  1) Need to implement the ability to support differential steering through asymmetric 
+//      wheel velocities. An idea about differential turning might be allow some value 
+//      of the y-axis without turning. For example if the yVal is [362,462] or [563,663], 
+//      then just treat this as pure motion along the X-axis. Once the y-values get 
+//      outside those ranges, then maybe we can start to add in differential wheel motion 
+//      in the mid-ranges. This will have to be studied a bit more before trying various 
+//      approaches to the problem.
+//
+//  2) Implement the ability to sense off-course motion, based on sensor information from 
+//      the wheel encoders, and then some sort of feedback based upon that sensor data.
+//
+//  3) Look at the TimerOne library for generating PWM signals with a finer degree of control 
+//      than that of the (fixed) 500Hz standard PWM capability of the Arduino Uno.
+//        See: http://playground.arduino.cc/Code/Timer1
+//        See: Chapter 3 of Monk's "Programming Arduino Next Steps..." book
 
-//TODO: Look at the TimerOne library for generating PWM signals with a finer degree of control 
-//        than that of the (fixed) 500Hz standard PWM capability of the Arduino Uno
-//      See: http://playground.arduino.cc/Code/Timer1
-//      See: Chapter 3 of Monk's "Programming Arduino Next Steps..." book
-
-//TODO: An idea about differential turning might be allow some value of the y-axis without 
-//        turning. For example if the yVal is [362,462] or [563,663], then just treat this as
-//        pure motion along the X-axis. Once the y-values get outside those ranges, then maybe
-//        we can start to add in differential wheel motion in the mid-ranges. This will have
-//        to be studied a bit more before trying various approaches to the problem.
 
 // Includes needed for Adafruit's motorshield
 #include <Wire.h>
@@ -27,6 +33,8 @@
 #define DEBUG
 
 const int INPUT_SIZE = 20;
+
+// For testing the joystick controller while attached directly to the Arduino
 const int yRangeIn = A0;
 const int xRangeIn = A1;
 
@@ -176,7 +184,7 @@ void loop()
          
 #ifdef DEBUG
     Serial.print("x-val: ");
-    Serial.print(xVal);
+    Serial.print(xVal);	
     Serial.print("\ty-val: ");
     Serial.println(yVal);
 #endif

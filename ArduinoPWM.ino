@@ -27,6 +27,8 @@
 #define DEBUG
 
 const int INPUT_SIZE = 20;
+const int yRangeIn = A0;
+const int xRangeIn = A1;
 
 // We need a motorshield object and a couple of motor pointers. We will use channels 1 and 2 on
 //  the motor shield, and leave channels 3 and 4 open for future feature addition
@@ -39,7 +41,34 @@ int xVal = 512;
 int xValLast = 512;
 int yVal = 512;
 int yValLast = 512;
-int desired_velocity = 0;
+int desired_velocity = 0;// //TODO: Test this logic
+//    // If atoi() returns a zero (0), it could mean either that the user sent a 0, or that atoi()
+//    //  function read an invalid value and returned a 0 to indicate this. Since there's no way 
+//    //  to tell which has occurred, we're going to have to disallow 0 as a value sent 
+//    //  from the CC by limiting the range of usable values to (0,1023].
+//    if (xVal == 0) { 
+//        xVal = xValLast;
+//    } else {
+//        xValLast = xVal;
+//    }
+//    
+//    // Use NULL for the first arg, so that we keep going in the array instead of starting anew
+//    yToken = strtok(NULL, "\0");
+//    
+// #ifdef DEBUG
+//    Serial.print("yToken: ");
+//    Serial.println(yToken);
+// #endif
+// 
+//    if (yToken != NULL) {
+//        yVal = atoi(yToken);
+//    }
+//    
+//    if (yVal == 0) {
+//        yVal = yValLast;
+//    } else {
+//        yValLast = yVal;
+//    }
 
 //TODO: These are only needed if we use the non-String-based Serial.read() methods in the 
 //        main program loop (see below)
@@ -59,7 +88,11 @@ void setup()
     //  methods are blocking, and have a default time-out of 1000ms. So they will block for 
     //  1 second unless the _timeout value (in the Stream.h header) is set differently, using 
     //  this public interface function. This seems to now have resolved the pause issue!
-    Serial.setTimeout(100);
+    Serial.setTimeout(100);yRangeIn
+    
+    // Set-up the analog input pins
+    pinMode(xRangeIn, INPUT);
+    pinMode(yRangeIn, INPUT);
 
     // Create the MotorShield with a default 1.6KHz frequency
     myShield.begin();
@@ -76,57 +109,60 @@ void setup()
 
 void loop()
 {  
-    // Block until there is serial data available
-    while (Serial.available() == 0) 
-        ;
-
-
-    // Load the command array up to the first NULL and get the number of bytes read. Then 
-    //  we terminate the array
-    byte size = Serial.readBytesUntil('\0', chArray, INPUT_SIZE);
-    chArray[size] = '\0';
-    
-    // The returned string should be something like 300,400
-    xToken = strtok(chArray, ",");
-    
- #ifdef DEBUG
-    Serial.print("xToken: ");
-    Serial.println(xToken);
- #endif
-    
-    // Prevent undefined behavior from atoi() if strtok() returns NULL 
-    if (xToken != NULL) {
-        xVal = atoi(xToken); 
-    }
+  xVal = analogRead(xRangeIn);
+  yVal = analogRead(yRangeIn);
   
- //TODO: Test this logic
-    // If atoi() returns a zero (0), it could mean either that the user sent a 0, or that atoi()
-    //  function read an invalid value and returned a 0 to indicate this. Since there's no way 
-    //  to tell which has occurred, we're going to have to disallow 0 as a value sent 
-    //  from the CC by limiting the range of usable values to (0,1023].
-    if (xVal == 0) { 
-        xVal = xValLast;
-    } else {
-        xValLast = xVal;
-    }
-    
-    // Use NULL for the first arg, so that we keep going in the array instead of starting anew
-    yToken = strtok(NULL, "\0");
-    
- #ifdef DEBUG
-    Serial.print("yToken: ");
-    Serial.println(yToken);
- #endif
- 
-    if (yToken != NULL) {
-        yVal = atoi(yToken);
-    }
-    
-    if (yVal == 0) {
-        yVal = yValLast;
-    } else {
-        yValLast = yVal;
-    }
+//    // Block until there is serial data available
+//    while (Serial.available() == 0) 
+//        ;
+//
+//
+//    // Load the command array up to the first NULL and get the number of bytes read. Then 
+//    //  we terminate the array
+//    byte size = Serial.readBytesUntil('\0', chArray, INPUT_SIZE);
+//    chArray[size] = '\0';
+//    
+//    // The returned string should be something like 300,400
+//    xToken = strtok(chArray, ",");
+//    
+// #ifdef DEBUG
+//    Serial.print("xToken: ");
+//    Serial.println(xToken);
+// #endif
+//    
+//    // Prevent undefined behavior from atoi() if strtok() returns NULL 
+//    if (xToken != NULL) {
+//        xVal = atoi(xToken); 
+//    }
+  
+// //TODO: Test this logic
+//    // If atoi() returns a zero (0), it could mean either that the user sent a 0, or that atoi()
+//    //  function read an invalid value and returned a 0 to indicate this. Since there's no way 
+//    //  to tell which has occurred, we're going to have to disallow 0 as a value sent 
+//    //  from the CC by limiting the range of usable values to (0,1023].
+//    if (xVal == 0) { 
+//        xVal = xValLast;
+//    } else {
+//        xValLast = xVal;
+//    }
+//    
+//    // Use NULL for the first arg, so that we keep going in the array instead of starting anew
+//    yToken = strtok(NULL, "\0");
+//    
+// #ifdef DEBUG
+//    Serial.print("yToken: ");
+//    Serial.println(yToken);
+// #endif
+// 
+//    if (yToken != NULL) {
+//        yVal = atoi(yToken);
+//    }
+//    
+//    if (yVal == 0) {
+//        yVal = yValLast;
+//    } else {
+//        yValLast = yVal;
+//    }
     
     // NOTE: Although this code is simpler than that above as it uses String objects, 
     //  some forum posters advise that the use of Strings can be problematic due to 
@@ -160,7 +196,7 @@ void loop()
     // Reverse if xVal is [0, 487)
     else if (xVal >= 0 && xVal < 487) {     
         desired_velocity = map(xVal, 486, 0, 0, 255);
-        lMotor->setSpeed(desired_velocity);
+        lMotor->setSpeed(desired_velocity);yRangeIn
         rMotor->setSpeed(desired_velocity);
         lMotor->run(BACKWARD);
         rMotor->run(BACKWARD);
@@ -175,6 +211,9 @@ void loop()
         rMotor->run(BRAKE);  
         delay(10);      
     }
+    
+    // Delay here for when using the joystick
+    delay(250);
 }
 
 

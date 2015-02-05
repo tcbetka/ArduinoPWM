@@ -96,7 +96,7 @@ void setup()
     //  methods are blocking, and have a default time-out of 1000ms. So they will block for 
     //  1 second unless the _timeout value (in the Stream.h header) is set differently, using 
     //  this public interface function. This seems to now have resolved the pause issue!
-    Serial.setTimeout(100);yRangeIn
+    Serial.setTimeout(100);
     
     // Set-up the analog input pins
     pinMode(xRangeIn, INPUT);
@@ -204,7 +204,7 @@ void loop()
     // Reverse if xVal is [0, 487)
     else if (xVal >= 0 && xVal < 487) {     
         desired_velocity = map(xVal, 486, 0, 0, 255);
-        lMotor->setSpeed(desired_velocity);yRangeIn
+        lMotor->setSpeed(desired_velocity);
         rMotor->setSpeed(desired_velocity);
         lMotor->run(BACKWARD);
         rMotor->run(BACKWARD);

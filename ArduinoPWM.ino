@@ -30,7 +30,9 @@
 #include <Adafruit_MotorShield.h>
 #include "utility/Adafruit_PWMServoDriver.h"
 
-#define DEBUG
+//#define DEBUG
+#define JOYSTICK
+#define SERIAL
 
 // Function prototypes
 void lWheelStop(void);
@@ -39,10 +41,13 @@ void rWheelStop(void);
 const int INPUT_SIZE = 20;
 
 // For testing the joystick controller while attached directly to the Arduino
-const int yRangeIn = A0;
-const int xRangeIn = A1;
-const float SCALE_FACTOR = 0.7f;
+#ifdef JOYSTICK
+    const int yRangeIn = A0;
+    const int xRangeIn = A1;
+#endif
 
+// For reducing the sensitivity during differential steering
+const float SCALE_FACTOR = 0.7f;
 
 // We need a motorshield object and a couple of motor pointers. We will use channels 1 and 2 on
 //  the motor shield, and leave channels 3 and 4 open for future feature addition
@@ -59,9 +64,11 @@ int desired_turn_rate = 0;
 
 //TODO: These are only needed if we use the non-String-based Serial.read() methods in the 
 //        main program loop (see below)
-//char chArray[INPUT_SIZE];
-//char* xToken;
-//char* yToken;
+#ifdef SERIAL
+    char chArray[INPUT_SIZE];
+    char* xToken;
+    char* yToken;
+#endif
 
 
 void setup()
@@ -77,9 +84,11 @@ void setup()
     //  interface function.
     Serial.setTimeout(100);
     
+#ifdef JOYSTICK
     // Set-up the analog input pins
     pinMode(xRangeIn, INPUT);
     pinMode(yRangeIn, INPUT);
+#endif
 
     // Create the MotorShield with a default 1.6KHz frequency
     myShield.begin();
@@ -92,71 +101,75 @@ void setup()
 
 void loop()
 {  
+    
+#if defined(JOYSTICK)
     //TODO: Remove when BBB/Arduino connection is implemented
     xVal = analogRead(xRangeIn);
     yVal = analogRead(yRangeIn);
-  
-//    //TODO: Reimplement and test this logic once the BBB/Arduino connection is in place
-//
-//    // Block until there is serial data available
-//    while (Serial.available() == 0) 
-//        ;
-//
-//    // Load the command array up to the first NULL and get the number of bytes read. Then 
-//    //  we terminate the array
-//    byte size = Serial.readBytesUntil('\0', chArray, INPUT_SIZE);
-//    chArray[size] = '\0';
-//    
-//    // The returned string should be something like 300,400
-//    xToken = strtok(chArray, ",");
-//    
-// #ifdef DEBUG
-//    Serial.print("xToken: ");
-//    Serial.println(xToken);
-// #endif
-//    
-//    // Prevent undefined behavior from atoi() if strtok() returns NULL 
-//    if (xToken != NULL) {
-//        xVal = atoi(xToken); 
-//    }
-  
-// //TODO: Test this logic
-//    // If atoi() returns a zero (0), it could mean either that the user sent a 0, or that atoi()
-//    //  function read an invalid value and returned a 0 to indicate this. Since there's no way 
-//    //  to tell which has occurred, we're going to have to disallow 0 as a value sent 
-//    //  from the CC by limiting the range of usable values to (0,1023].
-//    if (xVal == 0) { 
-//        xVal = xValLast;
-//    } else {
-//        xValLast = xVal;
-//    }
-//    
-//    // Use NULL for the first arg, so that we keep going in the array instead of starting anew
-//    yToken = strtok(NULL, "\0");
-//    
-// #ifdef DEBUG
-//    Serial.print("yToken: ");
-//    Serial.println(yToken);
-// #endif
-// 
-//    if (yToken != NULL) {
-//        yVal = atoi(yToken);
-//    }
-//    
-//    if (yVal == 0) {
-//        yVal = yValLast;
-//    } else {
-//        yValLast = yVal;
-//    }
+
+#elif defined(SERIAL)
+    //TODO: Reimplement and test this logic once the BBB/Arduino connection is in place
+
+    // Block until there is serial data available
+    while (Serial.available() == 0) 
+        ;
+
+    // Load the command array up to the first NULL and get the number of bytes read. Then 
+    //  we terminate the array
+    byte size = Serial.readBytesUntil('\0', chArray, INPUT_SIZE);
+    chArray[size] = '\0';
     
+    // The returned string should be something like 300,400
+    xToken = strtok(chArray, ",");
+    
+    #ifdef DEBUG
+        Serial.print("xToken: ");
+        Serial.println(xToken);
+    #endif
+    
+    // Prevent undefined behavior from atoi() if strtok() returns NULL 
+    if (xToken != NULL) {
+        xVal = atoi(xToken); 
+    }
+ 
+    //TODO: Test this logic
+    // If atoi() returns a zero (0), it could mean either that the user sent a 0, or that atoi()
+    //  function read an invalid value and returned a 0 to indicate this. Since there's no way 
+    //  to tell which has occurred, we're going to have to disallow 0 as a value sent 
+    //  from the CC by limiting the range of usable values to (0,1023].
+    if (xVal == 0) { 
+        xVal = xValLast;
+    } else {
+        xValLast = xVal;
+    }
+    
+    // Use NULL for the first arg, so that we keep going in the array instead of starting anew
+    yToken = strtok(NULL, "\0");
+    
+    #ifdef DEBUG
+        Serial.print("yToken: ");
+        Serial.println(yToken);
+    #endif
+ 
+    if (yToken != NULL) {
+        yVal = atoi(yToken);
+    }
+    
+    if (yVal == 0) {
+        yVal = yValLast;
+    } else {
+        yValLast = yVal;
+    }
+#endif
+
     // NOTE: Although this code is simpler than that above as it uses String objects, 
     //  some forum posters advise that the use of Strings can be problematic due to 
     //  dynamic memory management under the hood. Therefore we may need to stress-test
     //  this version, as opposed to using the char[] as noted above.
-//    String xString = Serial.readStringUntil(',');
-//    xVal = xString.toInt();
-//    String yString = Serial.readStringUntil('\0');
-//    yVal = yString.toInt();  
+    //String xString = Serial.readStringUntil(',');
+    //xVal = xString.toInt();
+    //String yString = Serial.readStringUntil('\0');
+    //yVal = yString.toInt();  
          
          
 #ifdef DEBUG
@@ -165,6 +178,7 @@ void loop()
     Serial.print("\ty-val: ");
     Serial.println(yVal);
 #endif
+
 
     // If the y-value is in the deadband, only go forward or backwards
     if (yVal > 487 && yVal < 538)

@@ -52,9 +52,7 @@ Adafruit_DCMotor* rMotor = myShield.getMotor(2);
 
 // Make sure the code starts running with the motors in the dead band
 int xVal = 512;
-int xValLast = 512;
 int yVal = 512;
-int yValLast = 512;
 int desired_velocity = 0;
 int desired_turn_rate = 0;
 

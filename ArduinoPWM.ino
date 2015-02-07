@@ -49,8 +49,9 @@ const int INPUT_SIZE = 20;
 // For reducing the sensitivity during differential steering
 const float SCALE_FACTOR = 0.7f;
 
-// We need a motorshield object and a couple of motor pointers. We will use channels 1 and 2 on
-//  the motor shield, and leave channels 3 and 4 open for future feature addition
+// We need a motorshield object (default address 0x60) and a couple of motor pointers. We will  
+//  use channels 1 and 2 on the motor shield, and leave channels 3 and 4 open for future feature 
+//  addition
 Adafruit_MotorShield myShield = Adafruit_MotorShield();
 Adafruit_DCMotor* lMotor = myShield.getMotor(1);
 Adafruit_DCMotor* rMotor = myShield.getMotor(2);
@@ -159,17 +160,7 @@ void loop()
     } else {
         yValLast = yVal;
     }
-#endif
-
-    // NOTE: Although this code is simpler than that above as it uses String objects, 
-    //  some forum posters advise that the use of Strings can be problematic due to 
-    //  dynamic memory management under the hood. Therefore we may need to stress-test
-    //  this version, as opposed to using the char[] as noted above.
-    //String xString = Serial.readStringUntil(',');
-    //xVal = xString.toInt();
-    //String yString = Serial.readStringUntil('\0');
-    //yVal = yString.toInt();  
-         
+#endif         
          
 #ifdef DEBUG
     Serial.print("x-val: ");
@@ -177,7 +168,6 @@ void loop()
     Serial.print("\ty-val: ");
     Serial.println(yVal);
 #endif
-
 
     // If the y-value is in the deadband, only go forward or backwards
     if (yVal > 487 && yVal < 538)

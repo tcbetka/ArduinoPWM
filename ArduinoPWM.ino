@@ -64,9 +64,6 @@ int yValLast = 512;
 int desired_velocity = 0;
 int desired_turn_rate = 0;
 
-
-//TODO: These are only needed if we use the non-String-based Serial.read() methods in the 
-//        main program loop (see below)
 #ifdef SERIAL
     char chArray[INPUT_SIZE];
     char* xToken;

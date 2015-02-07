@@ -47,7 +47,7 @@ const int INPUT_SIZE = 20;
 #endif
 
 // For reducing the sensitivity during differential steering
-const float SCALE_FACTOR = 0.7f;
+const float SCALE_FACTOR = 0.8f;
 
 // We need a motorshield object (default address 0x60) and a couple of motor pointers. We will  
 //  use channels 1 and 2 on the motor shield, and leave channels 3 and 4 open for future feature 
@@ -76,10 +76,16 @@ void setup()
     //TODO: May need to change this to Serial1 if we use the Arduino Mega. The Uno has only
     //       one hardware UART while the Mega has four--but the Mega's Serial port is the only
     //       one of the four that can be accessed over the USB port.
+    
+    // Serial is for DEBUG messages over USB
     Serial.begin(9600);
     
+    // Serial1 is for messages from the BBB
+    Serial1.begin(9600);
+    
     // Avoid prolonged blocking from Serial.read() and related methods that block for one second by default
-    Serial.setTimeout(100);
+    Serial1.setTimeout(100);
+    //Serial1.setTimeout(100);
     
 #ifdef JOYSTICK
     // Set-up the analog input pins
@@ -108,12 +114,15 @@ void loop()
     //TODO: Reimplement and test this logic once the BBB/Arduino connection is in place
 
     // Block until there is serial data available
-    while (Serial.available() == 0) 
-        ;
+    while (Serial1.available() == 0) 
+    {
+      ;
+      //Serial.println("foo");
+    }
 
     // Load the command array up to the first NULL and get the number of bytes read. Then 
     //  we terminate the array
-    byte size = Serial.readBytesUntil('\0', chArray, INPUT_SIZE);
+    byte size = Serial1.readBytesUntil('\0', chArray, INPUT_SIZE);
     chArray[size] = '\0';
     
     // The returned string should be something like 300,400

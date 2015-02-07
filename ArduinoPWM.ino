@@ -30,8 +30,8 @@
 #include <Adafruit_MotorShield.h>
 #include "utility/Adafruit_PWMServoDriver.h"
 
-//#define DEBUG
-#define JOYSTICK
+#define DEBUG
+//#define JOYSTICK
 #define SERIAL
 
 // Function prototypes
@@ -57,7 +57,9 @@ Adafruit_DCMotor* rMotor = myShield.getMotor(2);
 
 // Make sure the code starts running with the motors in the dead band
 int xVal = 512;
+int xValLast = 512;
 int yVal = 512;
+int yValLast = 512;
 int desired_velocity = 0;
 int desired_turn_rate = 0;
 
@@ -78,10 +80,7 @@ void setup()
     //       one of the four that can be accessed over the USB port.
     Serial.begin(9600);
     
-    // This is the solution to the Serial.read() (and related methods) blocking issue. These 
-    //  methods have a default time-out of 1000ms. So they will block for one second unless 
-    //  the _timeout value (in the Stream.h header) is set differently, using this public
-    //  interface function.
+    // Avoid prolonged blocking from Serial.read() and related methods that block for one second by default
     Serial.setTimeout(100);
     
 #ifdef JOYSTICK
